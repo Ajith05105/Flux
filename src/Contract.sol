@@ -1,12 +1,15 @@
-import {IERC20} from "@thirdweb-dev/contracts/eip/interface/IERC20.sol"
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+import {IERC20} from "@thirdweb-dev/contracts/eip/interface/IERC20.sol";
 import {Ownable} from "@thirdweb-dev/contracts/extension/Ownable.sol";
-import {SafeMath} from "@thirdweb-dev/contracts/extension/SafeMath.sol";
 import {ReentrancyGuard} from "@thirdweb-dev/contracts/external-deps/openzeppelin/security/ReentrancyGuard.sol";
 
 contract Contract is Ownable {
-    constructor() {}
-}
-    using SafeMath for uint256;
+    // Required by thirdweb's Ownable contract
+    function _canSetOwner() internal view virtual override returns (bool) {
+        return msg.sender == owner();
+    }
 
     // Structs
     struct Loan {
@@ -29,9 +32,13 @@ contract Contract is Ownable {
     // Mappings
     mapping(address => UserProfile) public userProfiles;
     mapping(address => Loan[]) public loans;
-    mapping(address => mapping(address => uint256)) public deposits; // user => token => depositAmount
-    mapping(address => uint256) public loanLimits; // user => loan limit
+    mapping(address => mapping(address => uint256)) public deposits;
+    mapping(address => uint256) public loanLimits;
     mapping(address => bool) public governanceVotes;
+    mapping(uint256 => mapping(address => bool)) public votes;
+
+    // Governance
+    uint256 public proposalId;
 
     // Events
     event UserRegistered(address indexed user);
@@ -48,12 +55,11 @@ contract Contract is Ownable {
         require(!userProfiles[user].isFrozen, "User account is frozen");
         _;
     }
-    // Functions
 
     // 1. User Management
     function registerUser(string memory name, string memory email) public {
         require(bytes(userProfiles[msg.sender].name).length == 0, "User already registered");
-        
+
         userProfiles[msg.sender] = UserProfile({
             name: name,
             email: email,
@@ -90,8 +96,8 @@ contract Contract is Ownable {
     // 2. Wallet and Asset Management
     function depositFunds(address token, uint256 amount) public onlyActiveUser(msg.sender) {
         IERC20(token).transferFrom(msg.sender, address(this), amount);
-        deposits[msg.sender][token] = deposits[msg.sender][token].add(amount);
-        userProfiles[msg.sender].balance = userProfiles[msg.sender].balance.add(amount);
+        deposits[msg.sender][token] = deposits[msg.sender][token] + amount;
+        userProfiles[msg.sender].balance = userProfiles[msg.sender].balance + amount;
 
         emit FundsDeposited(msg.sender, amount, token);
     }
@@ -99,8 +105,8 @@ contract Contract is Ownable {
     function withdrawFunds(address token, uint256 amount) public onlyActiveUser(msg.sender) {
         require(deposits[msg.sender][token] >= amount, "Insufficient balance");
 
-        deposits[msg.sender][token] = deposits[msg.sender][token].sub(amount);
-        userProfiles[msg.sender].balance = userProfiles[msg.sender].balance.sub(amount);
+        deposits[msg.sender][token] = deposits[msg.sender][token] - amount;
+        userProfiles[msg.sender].balance = userProfiles[msg.sender].balance - amount;
         IERC20(token).transfer(msg.sender, amount);
 
         emit FundsWithdrawn(msg.sender, amount, token);
@@ -119,7 +125,7 @@ contract Contract is Ownable {
         });
 
         loans[msg.sender].push(newLoan);
-        userProfiles[msg.sender].balance = userProfiles[msg.sender].balance.sub(amount);
+        userProfiles[msg.sender].balance = userProfiles[msg.sender].balance - amount;
 
         emit LoanIssued(msg.sender, amount, interestRate, duration);
     }
@@ -137,8 +143,8 @@ contract Contract is Ownable {
         });
 
         loans[msg.sender].push(newLoan);
-        deposits[msg.sender][token] = deposits[msg.sender][token].add(amount);
-        userProfiles[msg.sender].balance = userProfiles[msg.sender].balance.add(amount);
+        deposits[msg.sender][token] = deposits[msg.sender][token] + amount;
+        userProfiles[msg.sender].balance = userProfiles[msg.sender].balance + amount;
 
         emit LoanIssued(msg.sender, amount, interestRate, duration);
     }
@@ -147,31 +153,29 @@ contract Contract is Ownable {
         Loan storage loan = loans[msg.sender][loanId];
         require(loan.active, "Loan is not active");
 
-        uint256 repaymentAmount = loan.amount.add(loan.amount.mul(loan.interestRate).div(100));
+        uint256 repaymentAmount = loan.amount + (loan.amount * loan.interestRate / 100);
 
         require(deposits[msg.sender][address(0)] >= repaymentAmount, "Insufficient balance to repay loan");
 
-        deposits[msg.sender][address(0)] = deposits[msg.sender][address(0)].sub(repaymentAmount);
+        deposits[msg.sender][address(0)] = deposits[msg.sender][address(0)] - repaymentAmount;
         loan.active = false;
 
         emit LoanRepaid(msg.sender, loanId);
     }
 
     // 4. Governance
-    uint256 public proposalId;
-    mapping(uint256 => mapping(address => bool)) public votes;
-
     function createProposal(string memory description) public onlyOwner {
         proposalId++;
         emit GovernanceProposalCreated(msg.sender, proposalId);
     }
 
-    function voteOnProposal(uint256 proposalId, bool vote) public {
-        votes[proposalId][msg.sender] = vote;
-        emit GovernanceVoted(msg.sender, proposalId, vote);
+    function voteOnProposal(uint256 _proposalId, bool vote) public {
+        votes[_proposalId][msg.sender] = vote;
+        emit GovernanceVoted(msg.sender, _proposalId, vote);
     }
 
     // 5. Interest and Yield Generation (Simplified)
     function calculateInterest(uint256 amount, uint256 interestRate, uint256 duration) internal pure returns (uint256) {
-        return amount.mul(interestRate).mul(duration).div(100).div(365);
+        return (amount * interestRate * duration) / 100 / 365;
     }
+}
