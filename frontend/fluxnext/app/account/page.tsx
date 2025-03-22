@@ -318,7 +318,7 @@ export default function AccountPage() {
                                   {`${transaction.fromAmount} ${transaction.fromCurrency} → ${transaction.toAmount} ${transaction.toCurrency}`}
                                 </p>
                               </div>
-                            </motion.div>
+                            </motion.div> 
                           ))}
                       </div>
                     </CardContent>
