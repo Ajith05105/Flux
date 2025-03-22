@@ -1,54 +1,54 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { TrendingUp, TrendingDown } from "lucide-react"
 
-// Country flags for currencies
-const currencyFlags = {
-  USD: "🇺🇸",
-  EUR: "🇪🇺",
-  GBP: "🇬🇧",
-  JPY: "🇯🇵",
-  CAD: "🇨🇦",
-  AUD: "🇦🇺",
-}
+type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CAD' | 'AUD' | 'NZD' | 'PHP';
+
+const CURRENCY_TO_COUNTRY: Record<CurrencyCode, string> = {
+  USD: 'us',
+  EUR: 'eu',
+  GBP: 'gb',
+  JPY: 'jp',
+  CAD: 'ca',
+  AUD: 'au',
+  NZD: 'nz',
+  PHP: 'ph'
+};
 
 interface CurrencyRateCardProps {
-  baseCurrency: string
-  targetCurrency: string
+  baseCurrency: CurrencyCode
+  targetCurrency: CurrencyCode
   rate: number
 }
 
 export default function CurrencyRateCard({ baseCurrency, targetCurrency, rate }: CurrencyRateCardProps) {
-  // Mock trend data (randomly up or down)
-  const trend = Math.random() > 0.5 ? "up" : "down"
-  const trendPercentage = (Math.random() * 2).toFixed(2)
-
   return (
     <motion.div
       whileHover={{ x: 5 }}
-      className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border dark:border-gray-700"
+      className="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
     >
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-xl">{currencyFlags[baseCurrency as keyof typeof currencyFlags]}</span>
-          <span className="text-gray-400 text-sm">/</span>
-          <span className="text-xl">{currencyFlags[targetCurrency as keyof typeof currencyFlags]}</span>
+          <img 
+            src={`https://flagcdn.com/24x18/${CURRENCY_TO_COUNTRY[baseCurrency]}.png`}
+            alt={`${baseCurrency} flag`}
+            className="w-6 h-4"
+          />
+          <span className="font-medium dark:text-white">{baseCurrency}</span>
         </div>
-        <div>
-          <p className="font-medium dark:text-white">
-            {baseCurrency}/{targetCurrency}
-          </p>
+        <span className="text-gray-500 dark:text-gray-400">→</span>
+        <div className="flex items-center gap-2">
+          <img 
+            src={`https://flagcdn.com/24x18/${CURRENCY_TO_COUNTRY[targetCurrency]}.png`}
+            alt={`${targetCurrency} flag`}
+            className="w-6 h-4"
+          />
+          <span className="font-medium dark:text-white">{targetCurrency}</span>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <p className="font-bold dark:text-white">{rate}</p>
-        <div
-          className={`flex items-center ${trend === "up" ? "text-green-500 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}
-        >
-          {trend === "up" ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-          <span className="text-xs">{trendPercentage}%</span>
-        </div>
+      <div className="text-right">
+        <p className="font-medium text-blue-600 dark:text-blue-400">{rate.toFixed(4)}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">1 {baseCurrency} = {rate.toFixed(4)} {targetCurrency}</p>
       </div>
     </motion.div>
   )

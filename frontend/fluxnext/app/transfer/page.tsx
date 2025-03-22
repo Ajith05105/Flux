@@ -30,11 +30,59 @@ export default function TransferPage() {
     setShowConfirmation(true)
   }
 
-  const handleConfirmation = () => {
-    // Handle transfer confirmation
-    alert("Transfer successful!")
-    setShowConfirmation(false)
-    router.push("/")
+  const handleConfirmation = async () => {
+    try {
+      // Save transfer transaction via API
+      const response = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'transfer',
+          fromAmount: Number(amount),
+          fromCurrency: 'USD', // Default currency for transfer
+          toAmount: Number(amount),
+          toCurrency: 'USD',
+          recipient: recipient,
+          accountNumber: accountNumber,
+          note: note,
+          timestamp: new Date().toISOString(),
+          status: 'completed'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save transaction')
+      }
+
+      // Show success message before redirecting
+      const successMessage = document.createElement('div')
+      successMessage.className = 'fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50'
+      successMessage.innerHTML = `
+        <div class="bg-white/90 dark:bg-gray-800/90 rounded-lg p-6 text-center shadow-xl border border-green-100 dark:border-green-900">
+          <div class="text-green-500 mb-4">
+            <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium mb-2 text-green-800 dark:text-green-400">Transfer Successful!</h3>
+          <p class="text-gray-600 dark:text-gray-400 mb-4">Your money has been sent.</p>
+        </div>
+      `
+
+      document.body.appendChild(successMessage)
+
+      setTimeout(() => {
+        successMessage.remove()
+        setShowConfirmation(false)
+        router.push("/")
+      }, 3000)
+    } catch (error) {
+      console.error('Error confirming transfer:', error)
+      alert('An error occurred. Please try again later.')
+      setShowConfirmation(false)
+    }
   }
 
   const handleCancel = () => {
@@ -62,23 +110,33 @@ export default function TransferPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
+      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm dark:bg-gray-900/80 border-b border-green-100 dark:border-green-900">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+          <Button variant="ghost" className="flex items-center gap-2 hover:text-green-600 transition-colors" onClick={() => router.push("/")}>
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <div className="flex items-center gap-3">
+            <span className="font-bold text-3xl text-green-600 dark:text-green-400 font-['Poppins']">FLUX</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400 font-['Inter'] tracking-wide">Transfer Money</span>
+          </div>
+          <div className="w-[72px]" />
+        </div>
+      </header>
+
       <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="mb-6">
-        <Button variant="ghost" className="flex items-center gap-2" onClick={() => router.push("/")}>
-          <ArrowLeft className="h-4 w-4" />
-          Back to Home
-        </Button>
       </motion.div>
 
-      <motion.div variants={container} initial="hidden" animate="show" className="w-full max-w-3xl mx-auto space-y-8">
+      <motion.div variants={container} initial="hidden" animate="show" className="w-full max-w-3xl mx-auto space-y-8 px-4">
         <motion.div variants={item}>
-          <h1 className="text-3xl font-bold text-center mb-2">Transfer Money</h1>
-          <p className="text-center text-gray-500 mb-8">Send money to friends, family, or businesses</p>
+          <h1 className="text-3xl font-bold text-green-800 dark:text-green-400 font-['Poppins'] text-center mb-2">Transfer Money</h1>
+          <p className="text-center text-gray-600 dark:text-gray-400 font-['Inter']">Send money to friends, family, or businesses</p>
         </motion.div>
 
         {!showConfirmation ? (
           <motion.div variants={item}>
-            <Card>
+            <Card className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-green-100 dark:border-green-900 shadow-lg hover:shadow-xl transition-all duration-300">
               <CardHeader>
                 <CardTitle>Transfer Details</CardTitle>
               </CardHeader>
@@ -126,7 +184,7 @@ export default function TransferPage() {
                               key={recipient.id}
                               whileHover={{ scale: 1.03 }}
                               whileTap={{ scale: 0.98 }}
-                              className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-gray-50"
+                              className="flex items-center gap-3 p-3 rounded-lg border border-green-100 dark:border-green-900 cursor-pointer hover:bg-green-50/80 dark:hover:bg-green-900/20 transition-all duration-300"
                               onClick={() => selectRecipient(recipient.name, recipient.accountNumber)}
                             >
                               <Avatar>
@@ -212,7 +270,7 @@ export default function TransferPage() {
               </CardContent>
               <CardFooter>
                 <Button
-                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handleTransfer}
                   disabled={!recipient || !accountNumber || !amount}
                 >
@@ -278,7 +336,7 @@ export default function TransferPage() {
           </motion.div>
         )}
       </motion.div>
-    </main>
+    </div>
   )
 }
 
